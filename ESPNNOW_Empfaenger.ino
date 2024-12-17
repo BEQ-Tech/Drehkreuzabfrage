@@ -1,32 +1,36 @@
-
 #include <esp_now.h>
 #include <WiFi.h>
 
-// Pins for nine LEDs
-const byte LEDPins[] = {3, 4, 5, 6, 7, 21, 10, 9, 20};  // Array with LED pins
+// Pins für neun LEDs
+const byte LEDPins[] = {6, 7, 21, 3, 4, 5, 10, 8, 20};  // Array mit LED Pins
 
-// Define data structure with 9 inputs (for 9 LEDs)
+// Erweiterte Datenstruktur mit 9 Eingabewerten und Sender-ID
 typedef struct struct_message {
-  byte g1;
-  byte y1;
-  byte r1;
-  byte g2;
-  byte y2;
-  byte r2;
-  byte g3;
-  byte y3;
-  byte r3;
+  byte g;
+  byte y;
+  byte r;
+  int senderID;  // Sender-ID
 } struct_message;
+
+// Array zum Speichern der LED-Zustände (0 = OFF, 1 = ON)
+int ledStates[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};  // Global deklarieren
 
 struct_message myData;
 
 void setup() {
   Serial.begin(115200);
 
-  // Set LED pins as OUTPUT
+  // Setze die LED-Pins auf OUTPUT
   for (int i = 0; i < 9; i++) {
     pinMode(LEDPins[i], OUTPUT);
+    digitalWrite(LEDPins[i], LOW);  // Alle LEDs auf LOW setzen
   }
+
+  // Setze alle Eingabewerte in myData auf 0
+  myData.g = 0;
+  myData.y = 0;
+  myData.r = 0;
+  myData.senderID = -1;  // Unbekannte Sender-ID initialisieren
 
   WiFi.mode(WIFI_STA);
 
@@ -34,34 +38,43 @@ void setup() {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
-  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_recv_cb(OnDataRecv);  // Callback-Funktion für empfangene Daten registrieren
 }
 
-// Callback function that will be executed when data is received
+// Callback-Funktion, die ausgeführt wird, wenn Daten empfangen werden
 void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingData, int len) {
-  // Hier kannst du auf die MAC-Adresse des sendenden Geräts zugreifen
-  const uint8_t *mac = recv_info->des_addr;
-
   // Kopiere die empfangenen Daten in die Struktur
   memcpy(&myData, incomingData, sizeof(myData));
-  
+
   // Ausgabe der empfangenen Daten zur Fehlerbehebung
   Serial.println("Received Data:");
-  Serial.printf("g1: %d, y1: %d, r1: %d, g2: %d, y2: %d, r2: %d, g3: %d, y3: %d, r3: %d\n", 
-    myData.g1, myData.y1, myData.r1, myData.g2, myData.y2, myData.r2, myData.g3, myData.y3, myData.r3);
+  Serial.printf("Sender ID: %d\n", myData.senderID);  // Zeigt die Sender-ID an
+  Serial.printf("g: %d, y: %d, r: %d\n", 
+    myData.g, myData.y, myData.r);
 
-  // Control LEDs based on received data
-  digitalWrite(LEDPins[0], myData.g1 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[1], myData.y1 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[2], myData.r1 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[3], myData.g2 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[4], myData.y2 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[5], myData.r2 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[6], myData.g3 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[7], myData.y3 == 1 ? HIGH : LOW);
-  digitalWrite(LEDPins[8], myData.r3 == 1 ? HIGH : LOW);
+  // LEDs basierend auf den empfangenen Daten steuern
+  if (myData.senderID == 1) {  // Falls der Sender 1 ist
+    ledStates[0] = myData.g;
+    ledStates[1] = myData.y;
+    ledStates[2] = myData.r;
+  }
+  else if (myData.senderID == 2) {  // Falls der Sender 2 ist
+    ledStates[3] = myData.g;
+    ledStates[4] = myData.y;
+    ledStates[5] = myData.r;
+  }
+  else if (myData.senderID == 3) {  // Falls der Sender 3 ist
+    ledStates[6] = myData.g;
+    ledStates[7] = myData.y;
+    ledStates[8] = myData.r;
+  }
+
+  // Steuerung der LEDs basierend auf den gespeicherten Zuständen
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(LEDPins[i], ledStates[i] == 1 ? HIGH : LOW);
+  }
 }
 
 void loop() {
-  // No specific loop functionality, as LEDs are controlled by received data
+  // Keine spezifische Funktionalität im Loop, da die LEDs durch empfangene Daten gesteuert werden
 }
